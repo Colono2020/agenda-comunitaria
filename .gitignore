@@ -18,7 +18,8 @@ cache/*
 
 # Editor e sistema
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 *.log
 Thumbs.db
 .DS_Store
