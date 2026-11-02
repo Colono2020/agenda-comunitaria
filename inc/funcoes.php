@@ -1,6 +1,7 @@
 <?php
 // Funções comuns usadas em todas as páginas
-require_once __DIR__ . '/../config.php';
+// Usa o config.php (com as senhas reais, fora do GitHub). Se ele não existir, usa o modelo pronto para o XAMPP.
+require_once is_file(__DIR__ . '/../config.php') ? __DIR__ . '/../config.php' : __DIR__ . '/../config.exemplo.php';
 require_once __DIR__ . '/whatsapp.php';
 
 session_start();
