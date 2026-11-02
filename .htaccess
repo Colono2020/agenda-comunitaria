@@ -1,0 +1,32 @@
+# Agenda Comunitária - regras do Apache (XAMPP e hospedagem)
+
+# Abre a Home ao acessar só o endereço do site
+DirectoryIndex index.php
+
+# Arquivos que não devem ser baixados pelo navegador (banco, instruções, app do Windows)
+<FilesMatch "\.(sql|md|sh|log)$">
+    Require all denied
+</FilesMatch>
+RedirectMatch 404 /app-windows(/|$)
+
+# Tipos corretos para o app instalável
+AddType application/manifest+json .webmanifest
+AddType application/json .json
+AddType text/javascript .js
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Na hospedagem, força o HTTPS (o app instalável e o service worker exigem HTTPS).
+    # No PC (localhost, 127.0.0.1 ou rede local 192.168.x / 10.x) continua em http.
+    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1|192\.168\.|10\.) [NC]
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # O service worker nunca fica velho no aparelho
+    <Files "sw.js">
+        Header set Cache-Control "no-cache"
+    </Files>
+</IfModule>

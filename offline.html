@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2e7d32">
+    <title>Sem internet - Agenda Comunitária</title>
+    <link rel="icon" href="assets/icone.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/estilo.css">
+</head>
+<body>
+<header class="topo">
+    <span class="marca">🌱 Agenda Comunitária</span>
+</header>
+<main class="conteudo">
+    <section class="cartao vazio">
+        <p style="font-size:3rem;margin:0">📶</p>
+        <h1 class="titulo-pagina">Sem internet</h1>
+        <p>Não foi possível abrir esta página. Verifique se o celular está conectado ao Wi-Fi ou aos dados móveis.</p>
+        <p><button type="button" class="botao" onclick="location.reload()">Tentar de novo</button></p>
+    </section>
+</main>
+<script>
+// Quando a conexão voltar, recarrega sozinho
+window.addEventListener('online', function () { location.reload(); });
+</script>
+</body>
+</html>
