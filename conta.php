@@ -1,12 +1,15 @@
 <?php
-// Minha conta: dados da conta, troca do nome e do e-mail (o telefone é o login e não muda aqui)
+// Minha conta: dados da conta, troca do nome, do e-mail e da localização (o telefone é o login e não muda aqui)
 require_once __DIR__ . '/inc/funcoes.php';
 $usuario = exigir_login();
 
 $erro      = '';
 $erroEmail = '';
+$errosLocal = [];
 $nome      = $usuario['nome'];
 $novoEmail = '';
+$local     = ['uf' => $usuario['uf'], 'cidade' => $usuario['cidade'], 'bairro' => $usuario['bairro'], 'referencia' => $usuario['referencia']];
+if (!uf_valida($local['uf']) && uf_valida(uf_pelo_ddd($usuario['telefone']))) $local['uf'] = uf_pelo_ddd($usuario['telefone']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validar_csrf();
@@ -21,6 +24,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['usuario']['nome'] = $nome; // o "Olá, ..." e o resto do app mudam na hora
             avisar('Nome atualizado!');
             header('Location: conta.php');
+            exit;
+        }
+    } elseif ($acao === 'local') {
+        [$local, $errosLocal] = ler_localizacao($_POST, true);
+        if (!$errosLocal) {
+            db()->prepare('UPDATE usuarios SET uf = ?, cidade = ?, bairro = ?, referencia = ? WHERE id = ?')
+                ->execute([$local['uf'], $local['cidade'], $local['bairro'], $local['referencia'], $usuario['id']]);
+            // A sessão muda na hora (mural, membros, Home); a Home passa a abrir no estado novo
+            foreach ($local as $campo => $valor) $_SESSION['usuario'][$campo] = $valor;
+            unset($_SESSION['uf']);
+            avisar('Localização atualizada!');
+            header('Location: conta.php#local');
             exit;
         }
     } elseif ($acao === 'email' || $acao === 'reenviar') {
@@ -144,11 +159,29 @@ require __DIR__ . '/inc/topo.php';
     </form>
 </section>
 
+<section class="cartao formulario" id="local">
+    <h2>📍 Minha localização</h2>
+    <p class="local-atual"><b><?= e(local_formatado($usuario)) ?></b>
+        <?php if ($usuario['referencia'] !== ''): ?><br><span class="sub">Referência: <?= e($usuario['referencia']) ?></span><?php endif; ?></p>
+    <p class="sub dica-conta">Os membros das suas comunidades veem o bairro, a cidade e o estado nas suas publicações.
+        O ponto de referência aparece só aqui.</p>
+
+    <?php foreach ($errosLocal as $erroLocal): ?>
+        <div class="flash flash-erro"><?= e($erroLocal) ?></div>
+    <?php endforeach; ?>
+
+    <form method="post">
+        <?= campo_csrf() ?>
+        <input type="hidden" name="acao" value="local">
+        <?= campos_localizacao($local, true) ?>
+        <button type="submit" class="botao">Salvar localização</button>
+    </form>
+</section>
+
 <section class="cartao conta">
     <p>📞 <?= e(formatar_telefone($usuario['telefone'])) ?></p>
     <p class="sub dica-conta">O telefone é usado para entrar no app e foi confirmado pelo WhatsApp, por isso não pode ser alterado aqui.
         Se você trocou de número, use "Esqueci minha senha" na tela de entrada (é preciso ter o e-mail confirmado).</p>
-    <p>📍 <?= e($usuario['localidade']) ?></p>
 </section>
 
 <section class="cartao conta">

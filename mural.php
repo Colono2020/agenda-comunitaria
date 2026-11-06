@@ -44,12 +44,13 @@ if (isset(TIPOS[$filtroTipo])) {
     $params[] = $filtroTipo;
 }
 if ($busca !== '') {
-    $where[]  = '(p.titulo LIKE ? OR p.descricao LIKE ? OR u.localidade LIKE ?)';
+    // Busca no título, na descrição e na localização de quem publicou (cidade e bairro/comunidade)
+    $where[]  = '(p.titulo LIKE ? OR p.descricao LIKE ? OR u.cidade LIKE ? OR u.bairro LIKE ?)';
     $like     = '%' . $busca . '%';
-    array_push($params, $like, $like, $like);
+    array_push($params, $like, $like, $like, $like);
 }
 
-$sql = 'SELECT p.*, u.nome, u.telefone, u.localidade, c.nome AS comunidade_nome,
+$sql = 'SELECT p.*, u.nome, u.telefone, u.uf, u.cidade, u.bairro, c.nome AS comunidade_nome,
                ' . SQL_SEG_EDITAR . ' AS seg_editar
         FROM publicacoes p
         JOIN usuarios u ON u.id = p.usuario_id
@@ -163,7 +164,7 @@ require __DIR__ . '/inc/topo.php';
         <p class="data">🗓️ <?= e(data_br($p['data_evento'])) ?></p>
     <?php endif; ?>
 
-    <p class="autor">👤 <?= e($p['nome']) ?> · 📍 <?= e($p['localidade']) ?>
+    <p class="autor">👤 <?= e($p['nome']) ?> · 📍 <?= e(local_formatado($p)) ?>
         <?php if ($minhas): ?><br>🏘️ <?= e($p['comunidade_nome']) ?><?php endif; ?></p>
 
     <div class="pub-acoes">

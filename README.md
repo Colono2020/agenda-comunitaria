@@ -6,6 +6,7 @@ Aplicativo web para celular (PHP + MySQL) que ajuda pequenos produtores rurais a
 
 - Cadastro e login pelo **telefone** (muitos produtores não usam e-mail)
 - Confirmação do cadastro por **código de 6 números pelo WhatsApp** (vale 10 min, até 5 erros, reenvio a cada 60 s)
+- **Localização** da pessoa: estado, cidade (com sugestões do IBGE), bairro/comunidade e ponto de referência
 - **E-mail na conta** (confirmado por link) e **Esqueci minha senha**: link por e-mail (vale 1 h, uso único) para criar senha nova e, se precisar, trocar o telefone
 - **Home** com notícias do agro (Google Notícias) e eventos do agro do estado escolhido
 - App **restrito a comunidades**: depois de entrar, a pessoa escolhe, cria ou entra numa comunidade
@@ -139,7 +140,7 @@ agenda-comunitaria/
 ├── inc/               ← partes comuns: funções e conexão com o banco (funcoes.php), topo, rodapé,
 │                        notícias (noticias.php), envio do código pelo WhatsApp (whatsapp.php),
 │                        envio de e-mails (email.php) e a biblioteca PHPMailer (pasta PHPMailer)
-├── assets/            ← estilo (estilo.css) e ícones
+├── assets/            ← estilo (estilo.css), ícones e sugestões de cidades do IBGE (localizacao.js)
 ├── cache/             ← notícias guardadas por 30 min (criadas sozinhas; bloqueada para o navegador)
 ├── manifest.json      ← permite "instalar" no celular (PWA)
 ├── sw.js              ← service worker: guarda estilo/ícones e mostra offline.html sem internet
@@ -149,7 +150,7 @@ agenda-comunitaria/
 │
 │   Não precisa para rodar no PC:
 ├── banco-hospedagem.sql ← o mesmo que banco.sql, para importar na hospedagem
-├── migracao-comunidades.sql, migracao-home.sql, migracao-editar.sql, migracao-email.sql ← atualizam um banco de uma versão antiga (rodar uma vez)
+├── migracao-comunidades.sql, migracao-home.sql, migracao-editar.sql, migracao-email.sql, migracao-localizacao.sql ← atualizam um banco de uma versão antiga (rodar uma vez)
 ├── ajustes-admin.sql  ← marca a conta administradora e apaga usuários de exemplo de bancos antigos
 ├── PUBLICAR.md        ← passo a passo: hospedagem InfinityFree, APK (PWABuilder) e instalador do Windows
 └── app-windows/       ← app do Windows (Electron) que abre o site hospedado
@@ -201,6 +202,7 @@ Quem tem `is_admin = 1` vê, no menu **Eu**, a área **🛠 Administração**:
 3. `ajustes-admin.sql` (só para o banco que tinha os usuários de exemplo): marca a conta administradora e apaga os exemplos;
 4. `migracao-editar.sql`: adiciona a coluna `editado_em` em `publicacoes` (edição de publicações). Clique no banco antes de rodar.
 5. `migracao-email.sql`: adiciona o e-mail na conta e a tabela `links_email` (recuperação da conta). Clique no banco antes de rodar.
+6. `migracao-localizacao.sql`: separa a localização em cidade, bairro e referência (a antiga "localidade" vira a cidade). Clique no banco antes de rodar.
 
 ## Código de verificação pelo WhatsApp
 

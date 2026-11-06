@@ -42,12 +42,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$sql    = 'SELECT id, nome, telefone, localidade, uf, is_admin, criado_em FROM usuarios';
+$sql    = 'SELECT id, nome, telefone, uf, cidade, bairro, is_admin, criado_em FROM usuarios';
 $params = [];
 if ($busca !== '') {
-    $sql   .= ' WHERE nome LIKE ? OR telefone LIKE ? OR localidade LIKE ?';
+    $sql   .= ' WHERE nome LIKE ? OR telefone LIKE ? OR cidade LIKE ? OR bairro LIKE ?';
     $like   = '%' . $busca . '%';
-    $params = [$like, '%' . (limpar_telefone($busca) ?: $busca) . '%', $like];
+    $params = [$like, '%' . (limpar_telefone($busca) ?: $busca) . '%', $like, $like];
 }
 $st = db()->prepare($sql . ' ORDER BY nome');
 $st->execute($params);
@@ -94,7 +94,7 @@ require __DIR__ . '/inc/topo.php';
 <?php endif; ?>
 
 <form class="busca" method="get">
-    <input type="search" name="q" value="<?= e($busca) ?>" placeholder="Buscar por nome, telefone ou localidade…">
+    <input type="search" name="q" value="<?= e($busca) ?>" placeholder="Buscar por nome, telefone, cidade ou bairro…">
     <button type="submit" aria-label="Buscar">🔍</button>
 </form>
 
@@ -109,8 +109,7 @@ require __DIR__ . '/inc/topo.php';
     </div>
     <h3><?= e($u['nome']) ?></h3>
     <p class="autor">
-        📞 <?= e(formatar_telefone($u['telefone'])) ?> · 📍 <?= e($u['localidade']) ?>
-        · <?= $u['uf'] && isset(UFS[$u['uf']]) ? e($u['uf'] === 'BR' ? 'Todo o Brasil' : $u['uf']) : '<i>UF não escolhida</i>' ?>
+        📞 <?= e(formatar_telefone($u['telefone'])) ?> · 📍 <?= e(local_formatado($u)) ?>
     </p>
     <?php if (!$euMesmo): ?>
     <div class="pub-acoes">

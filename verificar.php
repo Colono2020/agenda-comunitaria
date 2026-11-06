@@ -54,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo = db();
                 try {
                     $pdo->beginTransaction();
-                    $st = $pdo->prepare('INSERT INTO usuarios (nome, telefone, localidade, email, senha_hash) VALUES (?, ?, ?, ?, ?)');
-                    $st->execute([$v['nome'], $telefone, $v['localidade'], $email, $v['senha_hash']]);
+                    $st = $pdo->prepare('INSERT INTO usuarios (nome, telefone, uf, cidade, bairro, email, senha_hash) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                    $st->execute([$v['nome'], $telefone, uf_valida((string) $v['uf']) ? $v['uf'] : null, $v['cidade'], $v['bairro'], $email, $v['senha_hash']]);
                     $id = (int) $pdo->lastInsertId();
                     $pdo->prepare('DELETE FROM verificacoes WHERE id = ?')->execute([$v['id']]);
                     $pdo->commit();
@@ -77,7 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 unset($_SESSION['verificar_telefone'], $_SESSION['codigo_teste']);
-                iniciar_sessao(['id' => $id, 'nome' => $v['nome'], 'telefone' => $telefone, 'localidade' => $v['localidade'], 'sessao_versao' => 0]);
+                iniciar_sessao(['id' => $id, 'nome' => $v['nome'], 'telefone' => $telefone, 'uf' => $v['uf'],
+                                'cidade' => $v['cidade'], 'bairro' => $v['bairro'], 'sessao_versao' => 0]);
 
                 // Link para confirmar o e-mail (a conta funciona mesmo se o envio falhar; dá para reenviar em Minha conta)
                 if ($email !== null && enviar_confirmacao_email($id, $v['nome'], $email)) {

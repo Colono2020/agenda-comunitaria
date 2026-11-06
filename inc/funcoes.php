@@ -104,7 +104,8 @@ function exigir_login(): array
     if ($u) {
         // A conta pode ter sido excluída (por um administrador ou em outra aba) ou recuperada
         // em outro aparelho (sessao_versao mudou): nos dois casos encerra esta sessão
-        $st = db()->prepare('SELECT nome, email, email_confirmado_em, sessao_versao FROM usuarios WHERE id = ?');
+        $st = db()->prepare('SELECT nome, email, email_confirmado_em, sessao_versao, uf, cidade, bairro, referencia
+                             FROM usuarios WHERE id = ?');
         $st->execute([$u['id']]);
         $linha = $st->fetch();
         if ($linha === false || (int) $linha['sessao_versao'] !== (int) ($u['sessao_versao'] ?? 0)) {
@@ -116,6 +117,10 @@ function exigir_login(): array
             $u['nome']     = $_SESSION['usuario']['nome']     = $linha['nome'];
             $u['email']    = $_SESSION['usuario']['email']    = $linha['email'];
             $u['email_ok'] = $_SESSION['usuario']['email_ok'] = $linha['email'] !== null && $linha['email_confirmado_em'] !== null;
+            // ...e a localização (ex.: alterada em outro aparelho)
+            foreach (['uf', 'cidade', 'bairro', 'referencia'] as $campo) {
+                $u[$campo] = $_SESSION['usuario'][$campo] = (string) $linha[$campo];
+            }
         }
     }
     if (!$u) {
@@ -136,7 +141,10 @@ function iniciar_sessao(array $u): void
         'id'            => (int) $u['id'],
         'nome'          => $u['nome'],
         'telefone'      => $u['telefone'],
-        'localidade'    => $u['localidade'],
+        'uf'            => (string) ($u['uf'] ?? ''),
+        'cidade'        => (string) ($u['cidade'] ?? ''),
+        'bairro'        => (string) ($u['bairro'] ?? ''),
+        'referencia'    => (string) ($u['referencia'] ?? ''),
         'sessao_versao' => (int) ($u['sessao_versao'] ?? 0),
     ];
     unset($_SESSION['comunidade_id'], $_SESSION['uf']); // comunidade e estado vêm de novo a cada login
@@ -188,7 +196,8 @@ function uf_pelo_ddd(string $telefone): string
 }
 
 /**
- * Estado escolhido na Home: o da sessão; senão o salvo no cadastro; senão o do DDD do telefone.
+ * Estado mostrado na Home: o escolhido no seletor da Home (só na sessão atual);
+ * senão o estado da localização da conta; senão o do DDD do telefone.
  */
 function uf_atual(array $usuario): string
 {
@@ -196,8 +205,79 @@ function uf_atual(array $usuario): string
     $st = db()->prepare('SELECT uf FROM usuarios WHERE id = ?');
     $st->execute([$usuario['id']]);
     $uf = $st->fetchColumn();
-    if (!isset(UFS[$uf ?: ''])) $uf = uf_pelo_ddd($usuario['telefone']);
+    if (!uf_valida((string) $uf)) $uf = uf_pelo_ddd($usuario['telefone']);
     return $_SESSION['uf'] = $uf;
+}
+
+// ---------- Localização do usuário ----------
+
+/** É um dos 27 estados? ('BR' = Todo o Brasil não vale como localização) */
+function uf_valida(string $uf): bool
+{
+    return $uf !== 'BR' && isset(UFS[$uf]);
+}
+
+/**
+ * Localização para mostrar: "Linha São José, Videira - SC" ou "Videira - SC" (sem bairro).
+ * Com $comReferencia, acrescenta " (perto da igreja)". Recebe uma linha com uf, cidade, bairro e referencia.
+ */
+function local_formatado(array $u, bool $comReferencia = false): string
+{
+    $cidade = trim((string) ($u['cidade'] ?? ''));
+    $bairro = trim((string) ($u['bairro'] ?? ''));
+    $uf     = (string) ($u['uf'] ?? '');
+    if ($cidade === '') return uf_valida($uf) ? UFS[$uf] : 'Localização não informada';
+    $texto = ($bairro !== '' ? $bairro . ', ' : '') . $cidade . (uf_valida($uf) ? ' - ' . $uf : '');
+    $ref = trim((string) ($u['referencia'] ?? ''));
+    return $comReferencia && $ref !== '' ? $texto . ' (' . $ref . ')' : $texto;
+}
+
+/**
+ * Lê e confere os campos de localização de um formulário (uf, cidade, bairro e, se pedido, referencia).
+ * Retorna [dados, erros]. Não pede endereço nem número de casa.
+ */
+function ler_localizacao(array $post, bool $comReferencia = false): array
+{
+    $limpa = fn($v) => trim(preg_replace('/\s+/u', ' ', (string) $v));
+    $d = [
+        'uf'     => strtoupper(trim((string) ($post['uf'] ?? ''))),
+        'cidade' => $limpa($post['cidade'] ?? ''),
+        'bairro' => $limpa($post['bairro'] ?? ''),
+    ];
+    if ($comReferencia) $d['referencia'] = $limpa($post['referencia'] ?? '');
+
+    $erros = [];
+    if (!uf_valida($d['uf']))                                         $erros[] = 'Escolha o seu estado.';
+    if (mb_strlen($d['cidade']) < 2 || mb_strlen($d['cidade']) > 100) $erros[] = 'Informe a sua cidade.';
+    if (mb_strlen($d['bairro']) > 100)                                $erros[] = 'O bairro / comunidade pode ter no máximo 100 letras.';
+    if ($comReferencia && mb_strlen($d['referencia']) > 80)           $erros[] = 'O ponto de referência pode ter no máximo 80 letras.';
+    return [$d, $erros];
+}
+
+/** Campos de localização (Estado, Cidade com sugestões do IBGE, Bairro e, se pedido, Ponto de referência). */
+function campos_localizacao(array $d, bool $comReferencia = false): string
+{
+    $ops = '<option value="">Escolha…</option>';
+    foreach (UFS as $sigla => $nome) {
+        if ($sigla === 'BR') continue;
+        $ops .= '<option value="' . $sigla . '"' . (($d['uf'] ?? '') === $sigla ? ' selected' : '') . '>' . e($nome) . '</option>';
+    }
+    $html = '<div class="campos-local" data-local>'
+        . '<label>Estado<select name="uf" required data-local-uf>' . $ops . '</select></label>'
+        . '<label>Cidade<input type="text" name="cidade" value="' . e($d['cidade'] ?? '') . '" required maxlength="100"'
+        . ' placeholder="Ex.: Videira" autocomplete="address-level2" list="lista-cidades" data-local-cidade></label>'
+        . '<datalist id="lista-cidades"></datalist>'
+        . '<label>Bairro / Comunidade / Linha <span class="opcional">(opcional)</span>'
+        . '<input type="text" name="bairro" value="' . e($d['bairro'] ?? '') . '" maxlength="100"'
+        . ' placeholder="Ex.: Centro, Linha São José"></label>';
+    if ($comReferencia) {
+        $html .= '<label>Ponto de referência <span class="opcional">(opcional)</span>'
+            . '<input type="text" name="referencia" value="' . e($d['referencia'] ?? '') . '" maxlength="80"'
+            . ' placeholder="Ex.: perto da igreja"></label>';
+    }
+    $versao = @filemtime(__DIR__ . '/../assets/localizacao.js') ?: 1;
+    return $html . '<p class="dica-local">Não coloque endereço nem número da casa: os membros das suas comunidades veem a sua localização.</p>'
+        . '</div><script src="assets/localizacao.js?v=' . $versao . '" defer></script>';
 }
 
 /** Administrador do site (cadastra os eventos do agro). Conferido no banco a cada página. */
@@ -556,7 +636,7 @@ function buscar_link_email(string $token, string $tipo): ?array
 {
     if (!preg_match('/^[a-f0-9]{64}$/', $token)) return null;
     $st = db()->prepare(
-        'SELECT l.*, u.nome, u.telefone, u.localidade, u.email AS email_conta, u.email_confirmado_em, u.sessao_versao
+        'SELECT l.*, u.nome, u.telefone, u.uf, u.cidade, u.bairro, u.email AS email_conta, u.email_confirmado_em, u.sessao_versao
          FROM links_email l JOIN usuarios u ON u.id = l.usuario_id
          WHERE l.token_hash = ? AND l.tipo = ?'
     );

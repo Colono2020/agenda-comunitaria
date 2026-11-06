@@ -4,13 +4,13 @@ require_once __DIR__ . '/inc/funcoes.php';
 require_once __DIR__ . '/inc/noticias.php';
 $usuario = exigir_login();
 
-// Troca de estado: guarda na sessão e no cadastro, para abrir nele da próxima vez
+// Troca de estado da Home: vale só nesta sessão. Não muda a localização da conta
+// (no próximo login a Home volta a abrir no estado da localização)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validar_csrf();
     $uf = $_POST['uf'] ?? '';
     if (isset(UFS[$uf])) {
         $_SESSION['uf'] = $uf;
-        db()->prepare('UPDATE usuarios SET uf = ? WHERE id = ?')->execute([$uf, $usuario['id']]);
     }
     header('Location: home.php');
     exit;

@@ -14,8 +14,11 @@ CREATE TABLE IF NOT EXISTS usuarios (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     nome        VARCHAR(100) NOT NULL,
     telefone    VARCHAR(20)  NOT NULL UNIQUE,   -- usado para login e contato no WhatsApp
-    localidade  VARCHAR(100) NOT NULL,          -- comunidade / linha / bairro rural
-    uf          CHAR(2)      NULL,              -- estado escolhido na Home (BR = Todo o Brasil; NULL = usa o DDD)
+    localidade  VARCHAR(100) NOT NULL DEFAULT '', -- antigo (não é mais usado; virou a coluna cidade)
+    cidade      VARCHAR(100) NOT NULL DEFAULT '', -- localização: cidade (ex.: Videira)
+    bairro      VARCHAR(100) NOT NULL DEFAULT '', -- localização: bairro / comunidade / linha (opcional)
+    referencia  VARCHAR(80)  NOT NULL DEFAULT '', -- localização: ponto de referência (opcional; só a pessoa vê)
+    uf          CHAR(2)      NULL,              -- localização: estado (NULL = usa o do DDD)
     senha_hash  VARCHAR(255) NOT NULL,
     is_admin    TINYINT(1)   NOT NULL DEFAULT 0, -- 1 = administrador do site (cadastra os eventos do agro)
     email       VARCHAR(190) NULL UNIQUE,        -- usado para recuperar a conta (NULL = ainda não cadastrou)
@@ -106,7 +109,10 @@ CREATE TABLE IF NOT EXISTS verificacoes (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     telefone    VARCHAR(20)  NOT NULL UNIQUE,
     nome        VARCHAR(100) NOT NULL,
-    localidade  VARCHAR(100) NOT NULL,
+    localidade  VARCHAR(100) NOT NULL DEFAULT '',
+    uf          CHAR(2)      NULL,
+    cidade      VARCHAR(100) NOT NULL DEFAULT '',
+    bairro      VARCHAR(100) NOT NULL DEFAULT '',
     email       VARCHAR(190) NOT NULL DEFAULT '',
     senha_hash  VARCHAR(255) NOT NULL,
     codigo_hash VARCHAR(255) NOT NULL DEFAULT '',  -- o código nunca é salvo em texto puro

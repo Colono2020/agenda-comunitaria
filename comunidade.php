@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$st = db()->prepare('SELECT u.id, u.nome, u.localidade, m.papel, m.entrou_em
+$st = db()->prepare('SELECT u.id, u.nome, u.uf, u.cidade, u.bairro, m.papel, m.entrou_em
                      FROM membros m JOIN usuarios u ON u.id = m.usuario_id
                      WHERE m.comunidade_id = ?
                      ORDER BY m.papel = \'admin\' DESC, m.entrou_em, u.id');
@@ -169,7 +169,7 @@ require __DIR__ . '/inc/topo.php';
             <div>
                 <b><?= e($m['nome']) ?></b>
                 <?php if ($m['papel'] === 'admin'): ?><span class="etiqueta admin">Admin</span><?php endif; ?>
-                <small>📍 <?= e($m['localidade']) ?> · desde <?= e(data_br($m['entrou_em'], false)) ?></small>
+                <small>📍 <?= e(local_formatado($m)) ?> · desde <?= e(data_br($m['entrou_em'], false)) ?></small>
             </div>
             <?php if ($admin && $m['id'] !== $usuario['id']): ?>
                 <form method="post">

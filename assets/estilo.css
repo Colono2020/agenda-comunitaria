@@ -298,3 +298,9 @@ textarea { resize: vertical; }
 .form-email { margin-top: 14px; }
 .link-teste { word-break: break-all; color: inherit; }
 .link-botao { background: none; border: 0; padding: 6px 0; color: var(--verde); font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* ---------- Localização (cadastro e Minha conta) ---------- */
+.rotulo-secao { margin-top: 4px; }
+.opcional { color: var(--cinza); font-weight: 400; font-size: .85rem; }
+.dica-local { margin: -4px 0 14px; color: var(--cinza); font-size: .82rem; }
+.local-atual { margin: 0 0 8px; overflow-wrap: anywhere; }
