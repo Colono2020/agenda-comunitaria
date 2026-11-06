@@ -49,18 +49,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ? 'Código incorreto. Você ainda tem ' . $restam . ($restam == 1 ? ' tentativa.' : ' tentativas.')
                     : 'Código incorreto. Você errou ' . CODIGO_MAX_ERROS . ' vezes: toque em "Reenviar código" para receber outro.';
             } else {
-                // Código certo: cria a conta e apaga o cadastro pendente
+                // Código certo: cria a conta (com o e-mail ainda não confirmado) e apaga o cadastro pendente
+                $email = $v['email'] !== '' ? $v['email'] : null;
                 $pdo = db();
                 try {
                     $pdo->beginTransaction();
-                    $st = $pdo->prepare('INSERT INTO usuarios (nome, telefone, localidade, senha_hash) VALUES (?, ?, ?, ?)');
-                    $st->execute([$v['nome'], $telefone, $v['localidade'], $v['senha_hash']]);
+                    $st = $pdo->prepare('INSERT INTO usuarios (nome, telefone, localidade, email, senha_hash) VALUES (?, ?, ?, ?, ?)');
+                    $st->execute([$v['nome'], $telefone, $v['localidade'], $email, $v['senha_hash']]);
                     $id = (int) $pdo->lastInsertId();
                     $pdo->prepare('DELETE FROM verificacoes WHERE id = ?')->execute([$v['id']]);
                     $pdo->commit();
                 } catch (PDOException $e) {
                     $pdo->rollBack();
                     if (($e->errorInfo[1] ?? 0) != 1062) throw $e;
+                    if ($email !== null && email_em_uso($email)) {
+                        // E-mail usado por outra conta criada nesse meio-tempo: volta para trocar o e-mail
+                        avisar('Já existe uma conta com este e-mail. Corrija o e-mail para continuar.', 'erro');
+                        header('Location: cadastro.php');
+                        exit;
+                    }
                     // Telefone já cadastrado (ex.: conta criada em outra aba)
                     $pdo->prepare('DELETE FROM verificacoes WHERE id = ?')->execute([$v['id']]);
                     unset($_SESSION['verificar_telefone'], $_SESSION['codigo_teste']);
@@ -70,15 +77,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 unset($_SESSION['verificar_telefone'], $_SESSION['codigo_teste']);
-                session_regenerate_id(true);
-                $_SESSION['usuario'] = [
-                    'id'         => $id,
-                    'nome'       => $v['nome'],
-                    'telefone'   => $telefone,
-                    'localidade' => $v['localidade'],
-                ];
-                avisar('Bem-vindo(a), ' . $v['nome'] . '! Sua conta foi criada.');
-                unset($_SESSION['comunidade_id'], $_SESSION['uf']); // comunidade e estado vêm de novo a cada login
+                iniciar_sessao(['id' => $id, 'nome' => $v['nome'], 'telefone' => $telefone, 'localidade' => $v['localidade'], 'sessao_versao' => 0]);
+
+                // Link para confirmar o e-mail (a conta funciona mesmo se o envio falhar; dá para reenviar em Minha conta)
+                if ($email !== null && enviar_confirmacao_email($id, $v['nome'], $email)) {
+                    avisar('Bem-vindo(a), ' . $v['nome'] . '! Sua conta foi criada. Enviamos um link para ' . $email
+                        . ' para confirmar seu e-mail. ' . DICA_SPAM);
+                } elseif ($email !== null) {
+                    avisar('Bem-vindo(a), ' . $v['nome'] . '! Sua conta foi criada. ' . ERRO_EMAIL
+                        . ' Você pode pedir o link de confirmação de novo em Minha conta.', 'aviso');
+                } else {
+                    avisar('Bem-vindo(a), ' . $v['nome'] . '! Sua conta foi criada.');
+                }
                 ir_para_volta(); // vai para o convite, se veio de um; senão, para a Home
             }
         }

@@ -3,6 +3,7 @@
 // Usa o config.php (com as senhas reais, fora do GitHub). Se ele não existir, usa o modelo pronto para o XAMPP.
 require_once is_file(__DIR__ . '/../config.php') ? __DIR__ . '/../config.php' : __DIR__ . '/../config.exemplo.php';
 require_once __DIR__ . '/whatsapp.php';
+require_once __DIR__ . '/email.php';
 
 session_start();
 
@@ -101,17 +102,20 @@ function exigir_login(): array
 {
     $u = usuario_logado();
     if ($u) {
-        // A conta pode ter sido excluída (por um administrador ou em outra aba): encerra a sessão
-        $st = db()->prepare('SELECT nome FROM usuarios WHERE id = ?');
+        // A conta pode ter sido excluída (por um administrador ou em outra aba) ou recuperada
+        // em outro aparelho (sessao_versao mudou): nos dois casos encerra esta sessão
+        $st = db()->prepare('SELECT nome, email, email_confirmado_em, sessao_versao FROM usuarios WHERE id = ?');
         $st->execute([$u['id']]);
-        $nome = $st->fetchColumn();
-        if ($nome === false) {
+        $linha = $st->fetch();
+        if ($linha === false || (int) $linha['sessao_versao'] !== (int) ($u['sessao_versao'] ?? 0)) {
             $_SESSION = [];
             session_regenerate_id(true);
             $u = null;
         } else {
-            // Mantém o nome da sessão em dia (ex.: alterado em outro aparelho)
-            $u['nome'] = $_SESSION['usuario']['nome'] = $nome;
+            // Mantém o nome e o e-mail da sessão em dia (ex.: alterados em outro aparelho)
+            $u['nome']     = $_SESSION['usuario']['nome']     = $linha['nome'];
+            $u['email']    = $_SESSION['usuario']['email']    = $linha['email'];
+            $u['email_ok'] = $_SESSION['usuario']['email_ok'] = $linha['email'] !== null && $linha['email_confirmado_em'] !== null;
         }
     }
     if (!$u) {
@@ -119,6 +123,23 @@ function exigir_login(): array
         exit;
     }
     return $u;
+}
+
+/**
+ * Entra na conta (login, cadastro confirmado ou conta recuperada).
+ * $u é a linha da tabela usuarios.
+ */
+function iniciar_sessao(array $u): void
+{
+    session_regenerate_id(true);
+    $_SESSION['usuario'] = [
+        'id'            => (int) $u['id'],
+        'nome'          => $u['nome'],
+        'telefone'      => $u['telefone'],
+        'localidade'    => $u['localidade'],
+        'sessao_versao' => (int) ($u['sessao_versao'] ?? 0),
+    ];
+    unset($_SESSION['comunidade_id'], $_SESSION['uf']); // comunidade e estado vêm de novo a cada login
 }
 
 /**
@@ -312,14 +333,27 @@ function gerar_codigo_comunidade(): string
     return $codigo;
 }
 
-/** Link completo do convite, com o endereço que está sendo usado para acessar o app. */
-function link_convite(string $codigo): string
+/**
+ * Endereço completo de uma página do app, com o endereço que está sendo usado para acessá-lo
+ * (localhost no XAMPP, https://agendacomunitaria.site.je na hospedagem).
+ */
+function url_do_site(string $pagina): string
 {
+    // Endereço fixo do config.php (usado na hospedagem): os links dos e-mails não dependem do
+    // cabeçalho Host da requisição, que pode ser falsificado
+    if (defined('SITE_URL') && SITE_URL !== '') return rtrim(SITE_URL, '/') . '/' . $pagina;
+
     // Na hospedagem o HTTPS pode chegar por um proxy (X-Forwarded-Proto)
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
     $pasta = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
-    return ($https ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $pasta . '/entrar.php?c=' . $codigo;
+    return ($https ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $pasta . '/' . $pagina;
+}
+
+/** Link completo do convite. */
+function link_convite(string $codigo): string
+{
+    return url_do_site('entrar.php?c=' . $codigo);
 }
 
 /** Senhas/códigos errados do usuário nos últimos 15 minutos. */
@@ -426,6 +460,138 @@ function enviar_novo_codigo(string $telefone): bool
     // Não conseguiu enviar: libera o reenvio na hora
     db()->prepare('UPDATE verificacoes SET enviado_em = NULL WHERE telefone = ?')->execute([$telefone]);
     return false;
+}
+
+// ---------- Edição de publicações ----------
+
+const EDICAO_PRAZO_HORAS = 24; // o autor pode editar até 24 horas depois de publicar
+
+/**
+ * Segundos que ainda faltam para poder editar (0 = prazo terminou), calculados pelo relógio do
+ * MySQL, o mesmo que gravou o criado_em. Use como coluna no SELECT: ... AS seg_editar
+ */
+const SQL_SEG_EDITAR = 'GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), p.criado_em + INTERVAL ' . EDICAO_PRAZO_HORAS . ' HOUR))';
+
+/** "Pode editar por mais 5 h" / "Pode editar por mais 40 min". */
+function texto_prazo_edicao(int $segundos): string
+{
+    if ($segundos >= 3600) return 'Pode editar por mais ' . floor($segundos / 3600) . ' h';
+    return 'Pode editar por mais ' . max(1, (int) ceil($segundos / 60)) . ' min';
+}
+
+/**
+ * Publicação do próprio usuário (só se ele ainda participa da comunidade dela), com o tempo
+ * que falta para editar em 'seg_editar'. Null se não existe ou é de outra pessoa.
+ */
+function publicacao_do_autor(int $id, int $usuarioId): ?array
+{
+    $st = db()->prepare(
+        'SELECT p.*, c.nome AS comunidade_nome, ' . SQL_SEG_EDITAR . ' AS seg_editar
+         FROM publicacoes p
+         JOIN comunidades c ON c.id = p.comunidade_id
+         JOIN membros m ON m.comunidade_id = p.comunidade_id AND m.usuario_id = p.usuario_id
+         WHERE p.id = ? AND p.usuario_id = ?'
+    );
+    $st->execute([$id, $usuarioId]);
+    $p = $st->fetch();
+    if (!$p) return null;
+    $p['seg_editar'] = (int) $p['seg_editar'];
+    return $p;
+}
+
+// ---------- E-mail da conta e links enviados por e-mail ----------
+
+const LINK_CONFIRMAR_HORAS = 24; // validade do link de confirmação do e-mail
+const LINK_RECUPERAR_MIN   = 60; // validade do link de recuperação da conta
+const LINKS_POR_HORA       = 3;  // máximo de e-mails do mesmo tipo por e-mail por hora
+
+/** E-mail em minúsculas e sem espaços; '' se for inválido. */
+function normalizar_email(string $email): string
+{
+    $email = mb_strtolower(trim($email));
+    return mb_strlen($email) <= 190 && filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '';
+}
+
+/** O e-mail já está na conta de outra pessoa (confirmado ou não)? */
+function email_em_uso(string $email, int $excetoUsuarioId = 0): bool
+{
+    $st = db()->prepare('SELECT 1 FROM usuarios WHERE email = ? AND id <> ?');
+    $st->execute([$email, $excetoUsuarioId]);
+    return (bool) $st->fetchColumn();
+}
+
+/** Quantos links deste tipo foram enviados para o e-mail na última hora. */
+function links_na_ultima_hora(string $email, string $tipo): int
+{
+    $st = db()->prepare('SELECT COUNT(*) FROM links_email WHERE email = ? AND tipo = ? AND criado_em > ?');
+    $st->execute([$email, $tipo, date('Y-m-d H:i:s', time() - 3600)]);
+    return (int) $st->fetchColumn();
+}
+
+/**
+ * Cria um link de uso único (token aleatório; no banco fica só o hash) e invalida os
+ * links anteriores do mesmo tipo dessa conta. Retorna o token, que vai só no e-mail.
+ */
+function criar_link_email(int $usuarioId, string $tipo, string $email, int $validadeSeg): string
+{
+    $token = bin2hex(random_bytes(32)); // 64 caracteres
+    $agora = date('Y-m-d H:i:s');
+    $pdo = db();
+    $pdo->beginTransaction();
+    $pdo->prepare('UPDATE links_email SET usado_em = ? WHERE usuario_id = ? AND tipo = ? AND usado_em IS NULL')
+        ->execute([$agora, $usuarioId, $tipo]);
+    $pdo->prepare('INSERT INTO links_email (usuario_id, tipo, email, token_hash, expira_em, criado_em) VALUES (?, ?, ?, ?, ?, ?)')
+        ->execute([$usuarioId, $tipo, $email, hash('sha256', $token), date('Y-m-d H:i:s', time() + $validadeSeg), $agora]);
+    // Limpeza: links vencidos há mais de 7 dias não servem para mais nada
+    $pdo->prepare('DELETE FROM links_email WHERE expira_em < ?')->execute([date('Y-m-d H:i:s', time() - 7 * 86400)]);
+    $pdo->commit();
+    return $token;
+}
+
+/**
+ * Procura o link pelo token. Retorna null se não existe; senão a linha do link com os dados
+ * da conta e 'situacao' = 'ok', 'usado' ou 'vencido'.
+ */
+function buscar_link_email(string $token, string $tipo): ?array
+{
+    if (!preg_match('/^[a-f0-9]{64}$/', $token)) return null;
+    $st = db()->prepare(
+        'SELECT l.*, u.nome, u.telefone, u.localidade, u.email AS email_conta, u.email_confirmado_em, u.sessao_versao
+         FROM links_email l JOIN usuarios u ON u.id = l.usuario_id
+         WHERE l.token_hash = ? AND l.tipo = ?'
+    );
+    $st->execute([hash('sha256', $token), $tipo]);
+    $l = $st->fetch();
+    if (!$l) return null;
+    $l['situacao'] = $l['usado_em'] ? 'usado' : (strtotime($l['expira_em']) < time() ? 'vencido' : 'ok');
+    return $l;
+}
+
+/** Envia o link de confirmação para o e-mail (novo ou trocado). */
+function enviar_confirmacao_email(int $usuarioId, string $nome, string $email): bool
+{
+    if (!email_configurado()) return false; // não cria link à toa
+    $token = criar_link_email($usuarioId, 'confirmar', $email, LINK_CONFIRMAR_HORAS * 3600);
+    return enviar_email(
+        $email, $nome,
+        'Confirme seu e-mail',
+        'Confirme seu e-mail',
+        'Olá, ' . $nome . '! Toque no botão abaixo para confirmar este e-mail na sua conta da Agenda Comunitária. '
+            . 'Com ele confirmado, você consegue recuperar sua conta se esquecer a senha ou trocar de número. '
+            . 'O link vale por ' . LINK_CONFIRMAR_HORAS . ' horas.',
+        'Confirmar meu e-mail',
+        url_do_site('confirmar-email.php?token=' . $token)
+    );
+}
+
+/** Link de confirmação ainda pendente da conta (e-mail que espera confirmação), ou null. */
+function confirmacao_pendente(int $usuarioId): ?array
+{
+    $st = db()->prepare("SELECT email, criado_em FROM links_email
+                         WHERE usuario_id = ? AND tipo = 'confirmar' AND usado_em IS NULL AND expira_em > ?
+                         ORDER BY id DESC LIMIT 1");
+    $st->execute([$usuarioId, date('Y-m-d H:i:s')]);
+    return $st->fetch() ?: null;
 }
 
 // ---------- Proteção de formulários (CSRF) ----------

@@ -49,7 +49,8 @@ if ($busca !== '') {
     array_push($params, $like, $like, $like);
 }
 
-$sql = 'SELECT p.*, u.nome, u.telefone, u.localidade, c.nome AS comunidade_nome
+$sql = 'SELECT p.*, u.nome, u.telefone, u.localidade, c.nome AS comunidade_nome,
+               ' . SQL_SEG_EDITAR . ' AS seg_editar
         FROM publicacoes p
         JOIN usuarios u ON u.id = p.usuario_id
         JOIN comunidades c ON c.id = p.comunidade_id
@@ -142,6 +143,8 @@ require __DIR__ . '/inc/topo.php';
 <?php foreach ($publicacoes as $p):
     [$nomeTipo, $icone] = TIPOS[$p['tipo']];
     $dono = (int) $p['usuario_id'] === $usuario['id'];
+    // O autor pode editar até 24 horas depois de publicar (conferido de novo no editar.php)
+    $podeEditar = $dono && (int) $p['seg_editar'] > 0;
 ?>
 <article class="cartao pub tipo-<?= e($p['tipo']) ?> <?= $p['ativo'] ? '' : 'encerrada' ?>" id="pub-<?= $p['id'] ?>">
     <div class="pub-cabeca">
@@ -174,6 +177,9 @@ require __DIR__ . '/inc/topo.php';
             <form method="post" action="acao.php">
                 <?= campo_csrf() ?>
                 <input type="hidden" name="id" value="<?= $p['id'] ?>">
+                <?php if ($podeEditar): ?>
+                    <a class="botao secundario" href="editar.php?<?= e(http_build_query(array_filter(['id' => $p['id'], 'voltar' => $minhas ? 'minhas' : '']))) ?>">✏️ Editar</a>
+                <?php endif; ?>
                 <?php if ($p['ativo']): ?>
                     <button name="acao" value="encerrar" class="botao secundario">✔ Encerrar</button>
                 <?php else: ?>
@@ -184,6 +190,10 @@ require __DIR__ . '/inc/topo.php';
             </form>
         <?php endif; ?>
     </div>
+
+    <?php if ($p['editado_em']): ?>
+        <p class="marca-editado">✏️ Alterado em <?= e(data_br($p['editado_em'])) ?></p>
+    <?php endif; ?>
 
     <?php if (!$dono && !$minhas && $souAdmin): ?>
         <form method="post" action="acao.php" class="remover-admin">

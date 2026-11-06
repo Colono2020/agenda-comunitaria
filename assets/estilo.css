@@ -57,7 +57,7 @@ h1 { margin: 0 0 6px; font-size: 1.5rem; }
     display: block; font-weight: 600; margin-bottom: 14px; font-size: .95rem;
 }
 .rotulo { margin-bottom: 8px; }
-input[type=text], input[type=tel], input[type=password], input[type=search],
+input[type=text], input[type=tel], input[type=email], input[type=password], input[type=search],
 input[type=datetime-local], textarea, select {
     display: block; width: 100%;
     margin-top: 6px; padding: 13px 14px;
@@ -170,6 +170,11 @@ textarea { resize: vertical; }
 .pub-acoes, .pub-acoes form { display: flex; gap: 8px; }
 .pub-acoes .botao { padding: 11px; font-size: .95rem; }
 .pub-acoes form { width: 100%; }
+.prazo-edicao { margin: 6px 0 0; color: var(--cinza); font-size: .8rem; text-align: right; }
+.marca-editado {
+    margin: 10px 0 0; padding-top: 8px; border-top: 1px dashed var(--borda);
+    color: var(--cinza); font-size: .82rem; font-style: italic;
+}
 
 /* ---------- Minha conta ---------- */
 .conta p { margin: 0 0 6px; }
@@ -280,3 +285,16 @@ textarea { resize: vertical; }
 .usuario-item h3 { margin: 8px 0 4px; font-size: 1.1rem; }
 .usuario-item .autor { margin: 0 0 10px; }
 .dica-conta { margin: -2px 0 10px; font-size: .85rem; }
+
+/* ---------- E-mail e recuperação da conta ---------- */
+/* Aviso "Cadastre seu e-mail": uma caixa só; o link ocupa a caixa inteira (toda ela é clicável) */
+.aviso-email { display: block; width: 100%; padding: 0; }
+.aviso-email a {
+    display: block; padding: 12px 14px; border-radius: inherit;
+    color: inherit; text-decoration: none; overflow-wrap: anywhere;
+}
+.dica-campo { display: block; margin-top: 4px; color: var(--cinza); font-weight: 400; font-size: .82rem; }
+.email-atual { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; word-break: break-all; }
+.form-email { margin-top: 14px; }
+.link-teste { word-break: break-all; color: inherit; }
+.link-botao { background: none; border: 0; padding: 6px 0; color: var(--verde); font: inherit; text-decoration: underline; cursor: pointer; }

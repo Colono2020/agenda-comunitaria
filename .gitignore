@@ -1,16 +1,27 @@
-# Configuração real (com senhas). O modelo fica em config.exemplo.php
+# Configuração real (com senhas do banco, Gmail e WhatsApp). O modelo fica em config.exemplo.php
 config.php
 
-# Senhas e variáveis de ambiente
+# Senhas, chaves e variáveis de ambiente
 .env
 .env.*
 *.pem
 *.key
+*.jks
+*.keystore
+keystore.properties
+local.properties
 
 # Dependências e build
 node_modules/
 dist/
+instalador/
 app-windows/instalador/
+app-android/**/build/
+app-android/app/release/
+.gradle/
+.kotlin/
+*.apk
+*.aab
 
 # Cache gerado pelo site (o .htaccess da pasta continua no Git)
 cache/*
@@ -18,6 +29,7 @@ cache/*
 
 # Editor e sistema
 .idea/
+*.iml
 .vscode/*
 !.vscode/extensions.json
 *.log

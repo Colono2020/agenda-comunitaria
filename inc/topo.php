@@ -14,7 +14,8 @@ $pagina  = basename($_SERVER['PHP_SELF']);
     <link rel="icon" href="assets/icone.svg" type="image/svg+xml">
     <link rel="icon" href="assets/icone-192.png" type="image/png" sizes="192x192">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-    <link rel="stylesheet" href="assets/estilo.css">
+    <?php // ?v= muda quando o estilo.css muda: o navegador baixa a versão nova em vez de usar a guardada ?>
+    <link rel="stylesheet" href="assets/estilo.css?v=<?= @filemtime(__DIR__ . '/../assets/estilo.css') ?: 1 ?>">
     <script>
     // Service worker (app instalável e página "Sem internet"). Caminho relativo: funciona em subpasta ou na raiz.
     if ('serviceWorker' in navigator) {
@@ -30,4 +31,8 @@ $pagina  = basename($_SERVER['PHP_SELF']);
     <?php endif; ?>
 </header>
 <main class="conteudo">
+<?php if ($usuario && array_key_exists('email', $usuario) && $usuario['email'] === null): ?>
+    <div class="flash flash-aviso aviso-email"><a href="conta.php#email">📧 Cadastre seu e-mail para poder recuperar sua conta.</a></div>
+<?php endif; ?>
 <?= mostrar_aviso() ?>
+<?= mostrar_email_teste() ?>

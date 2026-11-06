@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
     uf          CHAR(2)      NULL,              -- estado escolhido na Home (BR = Todo o Brasil; NULL = usa o DDD)
     senha_hash  VARCHAR(255) NOT NULL,
     is_admin    TINYINT(1)   NOT NULL DEFAULT 0, -- 1 = administrador do site (cadastra os eventos do agro)
+    email       VARCHAR(190) NULL UNIQUE,        -- usado para recuperar a conta (NULL = ainda não cadastrou)
+    email_confirmado_em DATETIME NULL,           -- NULL = o e-mail ainda não foi confirmado pelo link
+    sessao_versao INT        NOT NULL DEFAULT 0, -- muda ao recuperar a conta: encerra as sessões abertas em outros aparelhos
     criado_em   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -62,6 +65,7 @@ CREATE TABLE IF NOT EXISTS publicacoes (
     data_evento   DATETIME     NULL,               -- data do evento ou data em que precisa
     ativo         TINYINT(1)   NOT NULL DEFAULT 1, -- 0 = encerrada (ex.: já conseguiu o empréstimo)
     criado_em     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    editado_em    DATETIME     NULL,               -- última alteração feita pelo autor (NULL = nunca editada)
     CONSTRAINT fk_pub_usuario FOREIGN KEY (usuario_id)
         REFERENCES usuarios(id) ON DELETE CASCADE,
     CONSTRAINT fk_pub_comunidade FOREIGN KEY (comunidade_id)
@@ -105,6 +109,7 @@ CREATE TABLE IF NOT EXISTS verificacoes (
     telefone    VARCHAR(20)  NOT NULL UNIQUE,
     nome        VARCHAR(100) NOT NULL,
     localidade  VARCHAR(100) NOT NULL,
+    email       VARCHAR(190) NOT NULL DEFAULT '',
     senha_hash  VARCHAR(255) NOT NULL,
     codigo_hash VARCHAR(255) NOT NULL DEFAULT '',  -- o código nunca é salvo em texto puro
     tentativas  TINYINT      NOT NULL DEFAULT 0,   -- erros com o código atual (máximo 5)
@@ -112,6 +117,22 @@ CREATE TABLE IF NOT EXISTS verificacoes (
     enviado_em  DATETIME     NULL,                 -- último envio (para a espera de 60 segundos)
     criado_em   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_expira (expira_em)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Links enviados por e-mail: confirmar o e-mail e recuperar a conta (o link nunca é salvo, só o hash)
+CREATE TABLE IF NOT EXISTS links_email (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id  INT          NOT NULL,
+    tipo        ENUM('confirmar','recuperar') NOT NULL,
+    email       VARCHAR(190) NOT NULL,           -- e-mail para onde o link foi enviado
+    token_hash  CHAR(64)     NOT NULL UNIQUE,    -- SHA-256 do token do link
+    expira_em   DATETIME     NOT NULL,
+    usado_em    DATETIME     NULL,               -- preenchido quando o link é usado ou invalidado
+    criado_em   DATETIME     NOT NULL,
+    INDEX idx_link_usuario (usuario_id, tipo),
+    INDEX idx_link_email (email, tipo, criado_em),
+    CONSTRAINT fk_link_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Eventos de exemplo, só para teste (pode excluir pela página admin-eventos.php)

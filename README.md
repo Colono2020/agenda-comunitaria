@@ -6,6 +6,7 @@ Aplicativo web para celular (PHP + MySQL) que ajuda pequenos produtores rurais a
 
 - Cadastro e login pelo **telefone** (muitos produtores não usam e-mail)
 - Confirmação do cadastro por **código de 6 números pelo WhatsApp** (vale 10 min, até 5 erros, reenvio a cada 60 s)
+- **E-mail na conta** (confirmado por link) e **Esqueci minha senha**: link por e-mail (vale 1 h, uso único) para criar senha nova e, se precisar, trocar o telefone
 - **Home** com notícias do agro (Google Notícias) e eventos do agro do estado escolhido
 - App **restrito a comunidades**: depois de entrar, a pessoa escolhe, cria ou entra numa comunidade
 - Cada comunidade tem administrador, link de convite e senha de acesso; a pessoa pode participar de várias
@@ -14,6 +15,7 @@ Aplicativo web para celular (PHP + MySQL) que ajuda pequenos produtores rurais a
 - Mural, filtro, busca e próximos eventos mostram só a comunidade escolhida no topo
 - Botões **WhatsApp** e **Ligar** para falar direto com quem publicou
 - "Minhas publicações": encerrar, reabrir ou excluir
+- **Editar** a própria publicação (título, descrição, data e Ofereço/Preciso) até **24 horas** depois de publicar; publicações alteradas ficam com a marca "✏️ Alterado em …"
 - Excluir a própria conta (com todas as publicações), confirmando com a senha
 - Pode ser instalado na tela inicial do celular, como um app (PWA), virar APK Android e instalador do Windows
 
@@ -57,6 +59,10 @@ Abra o **XAMPP Control Panel** e clique em **Start** em **Apache** e em **MySQL*
 4. Role até o fim e clique em **Importar** (ou **Executar**).
 
 Isso cria o banco `agenda_comunitaria` com todas as tabelas e alguns eventos de exemplo. Nenhum usuário é criado.
+
+> **Configuração:** copie `config.exemplo.php` para `config.php` e preencha (senha do banco, dados da hospedagem,
+> Gmail e senha de app, WhatsApp). O `config.php` guarda senhas e **não vai para o GitHub** (está no `.gitignore`).
+> No XAMPP com as opções padrão dá para pular este passo: sem `config.php`, o app usa o `config.exemplo.php`.
 
 ### 5. Abra o app
 
@@ -116,18 +122,23 @@ agenda-comunitaria/
 ├── cadastro.php       ← criar conta
 ├── verificar.php      ← confirma o código enviado no cadastro
 ├── login.php, sair.php ← entrar e sair
+├── esqueci-senha.php  ← pede o link de recuperação por e-mail
+├── redefinir.php      ← recuperar a conta pelo link: senha nova e telefone novo (opcional)
+├── confirmar-email.php ← confirma o e-mail da conta pelo link
 ├── comunidades.php    ← escolha de comunidade (primeira página após o login)
 ├── criar-comunidade.php, entrar.php ← criar / entrar numa comunidade por link ou código
 ├── comunidade.php     ← membros, convite, senha, sair e excluir comunidade
 ├── mural.php          ← mural da comunidade / minhas publicações
 ├── publicar.php       ← nova publicação
+├── editar.php         ← editar a própria publicação (até 24 h depois de publicar)
 ├── acao.php           ← encerrar / reabrir / excluir / remover publicação
 ├── conta.php          ← minha conta
 ├── excluir-conta.php  ← exclui a própria conta (pede a senha)
 ├── admin-eventos.php  ← cadastro de eventos do agro (só administrador do site)
 ├── admin-comunidades.php, admin-usuarios.php ← administração de comunidades e usuários (só administrador do site)
 ├── inc/               ← partes comuns: funções e conexão com o banco (funcoes.php), topo, rodapé,
-│                        notícias (noticias.php) e envio do código pelo WhatsApp (whatsapp.php)
+│                        notícias (noticias.php), envio do código pelo WhatsApp (whatsapp.php),
+│                        envio de e-mails (email.php) e a biblioteca PHPMailer (pasta PHPMailer)
 ├── assets/            ← estilo (estilo.css) e ícones
 ├── cache/             ← notícias guardadas por 30 min (criadas sozinhas; bloqueada para o navegador)
 ├── manifest.json      ← permite "instalar" no celular (PWA)
@@ -138,7 +149,7 @@ agenda-comunitaria/
 │
 │   Não precisa para rodar no PC:
 ├── banco-hospedagem.sql ← o mesmo que banco.sql, para importar na hospedagem
-├── migracao-comunidades.sql, migracao-home.sql ← atualizam um banco de uma versão antiga (rodar uma vez)
+├── migracao-comunidades.sql, migracao-home.sql, migracao-editar.sql, migracao-email.sql ← atualizam um banco de uma versão antiga (rodar uma vez)
 ├── ajustes-admin.sql  ← marca a conta administradora e apaga usuários de exemplo de bancos antigos
 ├── PUBLICAR.md        ← passo a passo: hospedagem InfinityFree, APK (PWABuilder) e instalador do Windows
 └── app-windows/       ← app do Windows (Electron) que abre o site hospedado
@@ -187,7 +198,9 @@ Quem tem `is_admin = 1` vê, no menu **Eu**, a área **🛠 Administração**:
 **Já tinha o app instalado antes?** Rode, uma vez cada e nesta ordem, pelo phpMyAdmin (aba **Importar**):
 1. `migracao-comunidades.sql`: cria as comunidades e **apaga as publicações antigas** (os usuários são mantidos);
 2. `migracao-home.sql`: adiciona o estado e o admin do site em `usuarios` e cria os eventos do agro;
-3. `ajustes-admin.sql` (só para o banco que tinha os usuários de exemplo): marca a conta administradora e apaga os exemplos.
+3. `ajustes-admin.sql` (só para o banco que tinha os usuários de exemplo): marca a conta administradora e apaga os exemplos;
+4. `migracao-editar.sql`: adiciona a coluna `editado_em` em `publicacoes` (edição de publicações). Clique no banco antes de rodar.
+5. `migracao-email.sql`: adiciona o e-mail na conta e a tabela `links_email` (recuperação da conta). Clique no banco antes de rodar.
 
 ## Código de verificação pelo WhatsApp
 
@@ -197,6 +210,22 @@ No `config.php` (ou `config.exemplo.php`), `WHATSAPP_MODO` define como o código
 - `'api'`: envia pela WhatsApp Cloud API da Meta. Preencha `WHATSAPP_TOKEN` e `WHATSAPP_NUMERO_ID`
   e crie no painel da Meta um modelo de mensagem da categoria **Autenticação** (com botão "Copiar código")
   com o nome definido em `WHATSAPP_TEMPLATE`. Se o envio falhar, o erro vai para o log do Apache (`C:\xampp\apache\logs\error.log`).
+
+## E-mails (confirmação do e-mail e recuperação da conta)
+
+Os e-mails são enviados pelo Gmail com o PHPMailer (já está na pasta `inc/PHPMailer`, não precisa de Composer).
+No `config.php`:
+
+- `EMAIL_MODO = 'smtp'` (padrão): envia pelo `smtp.gmail.com` (porta 587, TLS). Preencha `SMTP_EMAIL` (a conta Gmail)
+  e `SMTP_SENHA_APP` (a "senha de app" de 16 letras criada em https://myaccount.google.com/apppasswords;
+  a conta precisa ter a verificação em duas etapas ligada).
+- `EMAIL_MODO = 'teste'`: nada é enviado; o link aparece num aviso amarelo na página (só para testes).
+- `SITE_URL`: endereço do site usado nos links dos e-mails. Na hospedagem é `https://agendacomunitaria.site.je`;
+  no XAMPP fica vazio (usa o endereço atual).
+
+Se o e-mail e a senha de app estiverem vazios, ou o envio falhar, a pessoa vê "Não foi possível enviar o e-mail agora"
+e o motivo vai para o log do PHP (no XAMPP: `C:
+mpp\apache\logsrror.log`).
 
 ## Como abrir no celular
 

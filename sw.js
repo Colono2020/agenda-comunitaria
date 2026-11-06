@@ -3,7 +3,7 @@
 // As páginas PHP sempre vêm da internet (dados sempre atualizados); sem internet, aparece a offline.html.
 // Os caminhos são relativos a este arquivo: funciona em localhost/agenda-comunitaria e na raiz de um domínio.
 
-const CACHE = 'agenda-v1'; // troque o número para forçar todos os aparelhos a baixarem os arquivos de novo
+const CACHE = 'agenda-v4'; // troque o número para forçar todos os aparelhos a baixarem os arquivos de novo
 
 const ARQUIVOS = [
     'offline.html',
@@ -20,7 +20,10 @@ const GUARDADOS = new Set(ARQUIVOS.map(a => new URL(a, self.location).href));
 const OFFLINE = new URL('offline.html', self.location).href;
 
 self.addEventListener('install', ev => {
-    ev.waitUntil(caches.open(CACHE).then(c => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
+    // cache: 'reload' busca da internet, sem usar uma cópia velha guardada pelo navegador
+    ev.waitUntil(caches.open(CACHE)
+        .then(c => c.addAll(ARQUIVOS.map(a => new Request(a, { cache: 'reload' }))))
+        .then(() => self.skipWaiting()));
 });
 
 // Apaga caches de versões antigas
@@ -42,8 +45,10 @@ self.addEventListener('fetch', ev => {
         return;
     }
 
-    // Estilo e ícones: responde na hora com o que está guardado e atualiza em segundo plano
+    // Estilo e ícones: responde na hora com o que está guardado e atualiza em segundo plano.
+    // O estilo com versão (estilo.css?v=...) vem primeiro da internet; o guardado só é usado sem conexão.
     const url = new URL(req.url);
+    const comVersao = url.searchParams.has('v');
     url.search = '';
     if (GUARDADOS.has(url.href)) {
         ev.respondWith(caches.open(CACHE).then(cache =>
@@ -52,6 +57,7 @@ self.addEventListener('fetch', ev => {
                     if (resp.ok) cache.put(url.href, resp.clone());
                     return resp;
                 });
+                if (comVersao) return daRede.catch(() => guardado || Response.error());
                 if (guardado) {
                     ev.waitUntil(daRede.catch(() => {}));
                     return guardado;

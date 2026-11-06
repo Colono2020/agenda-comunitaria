@@ -20,14 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $u = $st->fetch();
 
     if ($u && password_verify($senha, $u['senha_hash'])) {
-        session_regenerate_id(true);
-        $_SESSION['usuario'] = [
-            'id'         => (int) $u['id'],
-            'nome'       => $u['nome'],
-            'telefone'   => $u['telefone'],
-            'localidade' => $u['localidade'],
-        ];
-        unset($_SESSION['comunidade_id'], $_SESSION['uf']); // comunidade e estado vêm de novo a cada login
+        iniciar_sessao($u);
         ir_para_volta(); // vai para o convite, se veio de um; senão, para a Home
     }
     $erro = 'Telefone ou senha incorretos.';
@@ -58,6 +51,7 @@ require __DIR__ . '/inc/topo.php';
         </label>
         <button type="submit" class="botao">Entrar</button>
     </form>
+    <p class="centro"><a href="esqueci-senha.php">Esqueci minha senha</a></p>
     <p class="centro">Ainda não tem conta? <a href="cadastro.php">Cadastre-se</a></p>
 </section>
 <?php require __DIR__ . '/inc/rodape.php'; ?>

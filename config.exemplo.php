@@ -39,5 +39,18 @@ define('WHATSAPP_TEMPLATE', 'codigo_verificacao'); // nome do modelo de Autentic
 define('WHATSAPP_TEMPLATE_IDIOMA', 'pt_BR');
 define('WHATSAPP_API_VERSAO', 'v21.0');
 
+// =====================================================
+// E-mails (confirmação do e-mail e recuperação da conta)
+//   'smtp'  = envia pelo Gmail (preencha SMTP_EMAIL e SMTP_SENHA_APP)
+//   'teste' = não envia nada; o link aparece num aviso amarelo na página (só para testes)
+// =====================================================
+define('EMAIL_MODO', 'smtp');
+define('SMTP_EMAIL', '');                    // a conta Gmail que envia (ex.: seuemail@gmail.com)
+define('SMTP_SENHA_APP', '');                // a "senha de app" de 16 letras do Google (sem espaços)
+define('SMTP_NOME', 'Agenda Comunitária');   // nome do remetente
+
+// Endereço do site usado nos links dos e-mails (no XAMPP fica vazio: usa o endereço atual)
+define('SITE_URL', AMBIENTE === 'hospedagem' ? 'https://agendacomunitaria.site.je' : '');
+
 // Fuso horário do Brasil
 date_default_timezone_set('America/Sao_Paulo');

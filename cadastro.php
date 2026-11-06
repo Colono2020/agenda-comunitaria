@@ -7,19 +7,22 @@ if (usuario_logado()) {
 }
 
 $erros = [];
-$dados = ['nome' => '', 'telefone' => '', 'localidade' => ''];
+$dados = ['nome' => '', 'telefone' => '', 'email' => '', 'localidade' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validar_csrf();
 
     $dados['nome']       = trim($_POST['nome'] ?? '');
     $dados['telefone']   = limpar_telefone($_POST['telefone'] ?? '');
+    $dados['email']      = trim($_POST['email'] ?? '');
     $dados['localidade'] = trim($_POST['localidade'] ?? '');
+    $email               = normalizar_email($dados['email']);
     $senha               = $_POST['senha'] ?? '';
     $senha2              = $_POST['senha2'] ?? '';
 
     if (mb_strlen($dados['nome']) < 3)                  $erros[] = 'Informe seu nome.';
     if (!in_array(strlen($dados['telefone']), [10, 11])) $erros[] = 'Informe o telefone com DDD (ex.: 49 99999-0000).';
+    if ($email === '')                                   $erros[] = 'Informe um e-mail válido (ex.: maria@gmail.com).';
     if ($dados['localidade'] === '')                     $erros[] = 'Informe sua comunidade ou localidade.';
     if (strlen($senha) < 6)                              $erros[] = 'A senha precisa ter pelo menos 6 caracteres.';
     if ($senha !== $senha2)                              $erros[] = 'As senhas não conferem.';
@@ -30,6 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($st->fetch()) {
             $erros[] = 'Já existe uma conta com este telefone. Faça login.';
         }
+        if (email_em_uso($email)) {
+            $erros[] = 'Já existe uma conta com este e-mail. Use outro e-mail ou faça login.';
+        }
     }
 
     if (!$erros) {
@@ -37,9 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         db()->prepare('DELETE FROM verificacoes WHERE expira_em < ?')->execute([date('Y-m-d H:i:s', time() - 86400)]);
 
         // A conta só é criada depois de confirmar o código (verificar.php)
-        $st = db()->prepare('INSERT INTO verificacoes (telefone, nome, localidade, senha_hash) VALUES (?, ?, ?, ?)
-                             ON DUPLICATE KEY UPDATE nome = VALUES(nome), localidade = VALUES(localidade), senha_hash = VALUES(senha_hash)');
-        $st->execute([$dados['telefone'], $dados['nome'], $dados['localidade'], password_hash($senha, PASSWORD_DEFAULT)]);
+        $st = db()->prepare('INSERT INTO verificacoes (telefone, nome, localidade, email, senha_hash) VALUES (?, ?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE nome = VALUES(nome), localidade = VALUES(localidade), email = VALUES(email), senha_hash = VALUES(senha_hash)');
+        $st->execute([$dados['telefone'], $dados['nome'], $dados['localidade'], $email, password_hash($senha, PASSWORD_DEFAULT)]);
         $_SESSION['verificar_telefone'] = $dados['telefone'];
 
         if (espera_reenvio(buscar_verificacao($dados['telefone'])) > 0) {
@@ -53,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 } elseif (!empty($_SESSION['verificar_telefone']) && ($pendente = buscar_verificacao($_SESSION['verificar_telefone']))) {
     // Voltou para corrigir os dados: preenche com o cadastro pendente
-    $dados = ['nome' => $pendente['nome'], 'telefone' => $pendente['telefone'], 'localidade' => $pendente['localidade']];
+    $dados = ['nome' => $pendente['nome'], 'telefone' => $pendente['telefone'], 'email' => $pendente['email'], 'localidade' => $pendente['localidade']];
 }
 
 $titulo = 'Criar conta';
@@ -74,6 +80,10 @@ require __DIR__ . '/inc/topo.php';
         </label>
         <label>Telefone / WhatsApp (com DDD)
             <input type="tel" name="telefone" value="<?= e($dados['telefone']) ?>" required inputmode="numeric" placeholder="49 99999-0000" autocomplete="tel">
+        </label>
+        <label>E-mail
+            <input type="email" name="email" value="<?= e($dados['email']) ?>" required maxlength="190" placeholder="maria@gmail.com" autocomplete="email" inputmode="email">
+            <small class="dica-campo">Usado só para recuperar sua conta se você esquecer a senha ou trocar de número.</small>
         </label>
         <label>Comunidade / Localidade
             <input type="text" name="localidade" value="<?= e($dados['localidade']) ?>" required maxlength="100" placeholder="Ex.: Linha São José">
