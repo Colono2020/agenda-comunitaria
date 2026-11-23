@@ -1,0 +1,59 @@
+@startuml 04-sequencia-entrar-comunidade
+skinparam dpi 200
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam sequence {
+  ParticipantBackgroundColor #F1F8E9
+  ParticipantBorderColor #2E7D32
+  ActorBorderColor #2E7D32
+  LifeLineBorderColor #78909C
+  GroupBorderColor #2E7D32
+}
+autonumber
+
+title Diagrama de Sequência 2 – Entrar em comunidade
+
+actor "Usuário" as U
+participant "Interface do\nsistema" as I
+participant "Controle de\ncomunidades" as C
+database "Banco de\ndados" as BD
+
+U -> I : informar convite (código ou link) e senha
+activate I
+I -> C : enviar código e senha
+activate C
+C -> BD : consultar comunidade pelo código
+activate BD
+BD --> C : dados da comunidade
+deactivate BD
+C -> BD : consultar tentativas de acesso
+activate BD
+BD --> C : nº de tentativas recentes
+deactivate BD
+
+alt tentativas >= 5 (bloqueio ativo)
+  C --> I : acesso temporariamente bloqueado
+  I --> U : informar bloqueio temporário
+else senha correta
+  C -> BD : registrar participação (Membro)
+  activate BD
+  BD --> C : participação registrada
+  deactivate BD
+  C --> I : sucesso
+  I --> U : apresentar a comunidade
+else senha incorreta
+  C -> BD : contabilizar tentativa
+  activate BD
+  BD --> C : tentativa registrada
+  deactivate BD
+  C --> I : senha incorreta
+  I --> U : informar erro
+  note right of C
+    Ao atingir 5 erros,
+    aplica o bloqueio temporário.
+  end note
+end
+
+deactivate C
+deactivate I
+@enduml

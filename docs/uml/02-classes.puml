@@ -1,0 +1,103 @@
+@startuml 02-classes
+skinparam dpi 200
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #F1F8E9
+  BorderColor #2E7D32
+  ArrowColor #37474F
+  HeaderBackgroundColor #C8E6C9
+}
+hide circle
+hide methods
+
+title Diagrama de Classes (conceitual) – Agenda Comunitária
+
+class "Usuário" as Usuario {
+  - id : int
+  - nome : String
+  - telefone : String
+  - email : String
+  - senha : String
+  - cidade : String
+  - bairro : String
+}
+
+class "Comunidade" as Comunidade {
+  - id : int
+  - nome : String
+  - descricao : String
+  - codigoConvite : String
+}
+
+class "Membro" as Membro {
+  - papel : Papel
+  - dataEntrada : DateTime
+}
+
+enum "Papel" as Papel {
+  ADMIN
+  MEMBRO
+}
+
+class "Publicação" as Publicacao {
+  - id : int
+  - tipo : TipoPublicacao
+  - intencao : Intencao
+  - titulo : String
+  - descricao : String
+  - dataEvento : DateTime
+  - situacao : Situacao
+  - dataCriacao : DateTime
+}
+
+enum "TipoPublicacao" as TipoPublicacao {
+  AVISO
+  PRODUTO
+  EMPRESTIMO
+  SERVICO
+  EVENTO
+}
+
+enum "Intencao" as Intencao {
+  OFERECO
+  PRECISO
+}
+
+enum "Situacao" as Situacao {
+  ATIVA
+  ENCERRADA
+}
+
+class "Evento" as Evento {
+  - id : int
+  - titulo : String
+  - descricao : String
+  - local : String
+  - cidade : String
+  - estado : String
+  - dataInicio : DateTime
+  - dataTermino : DateTime
+}
+
+Usuario "1" -- "0..*" Membro : participa >
+Comunidade "1" -- "0..*" Membro : possui >
+Membro ..> Papel
+
+Comunidade "1" *-- "0..*" Publicacao : contém >
+Usuario "1" -- "0..*" Publicacao : cria >
+Publicacao ..> TipoPublicacao
+Publicacao ..> Intencao
+Publicacao ..> Situacao
+
+Usuario "1" -- "0..*" Comunidade : administra >
+
+Usuario "1" -- "0..*" Evento : cadastra\n(administrador geral) >
+
+note bottom of Membro
+  Classe associativa entre Usuário e Comunidade:
+  um usuário participa de várias comunidades
+  e uma comunidade possui vários usuários.
+end note
+@enduml

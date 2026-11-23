@@ -20,6 +20,14 @@ Aplicativo web para celular (PHP + MySQL) que ajuda pequenos produtores rurais a
 - Excluir a própria conta (com todas as publicações), confirmando com a senha
 - Pode ser instalado na tela inicial do celular, como um app (PWA), virar APK Android e instalador do Windows
 
+## 📐 Documentação
+
+A modelagem UML do sistema (casos de uso, classes e sequência), com a especificação dos casos de uso críticos, está em **[docs/uml](docs/uml/README.md)**.
+
+<p align="center">
+  <a href="docs/uml/README.md"><img src="docs/uml/01-casos-de-uso.svg" alt="Diagrama de casos de uso" width="360"></a>
+</p>
+
 ## Como rodar no PC (passo a passo)
 
 Não é preciso configurar nada: o projeto já vem pronto para o XAMPP com as opções padrão.

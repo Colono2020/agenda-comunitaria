@@ -1,0 +1,69 @@
+@startuml 01-casos-de-uso
+skinparam dpi 200
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F1F8E9
+  BorderColor #2E7D32
+}
+skinparam rectangle {
+  BorderColor #2E7D32
+  FontStyle bold
+}
+left to right direction
+
+title Diagrama de Casos de Uso – Agenda Comunitária
+
+actor "Usuário" as U
+actor "Administrador\nda comunidade" as AC
+actor "Administrador\ngeral" as AG
+
+AC -up-|> U
+AG -up-|> U
+
+rectangle "Sistema Agenda Comunitária" {
+  usecase "Cadastrar conta" as UC_CAD
+  usecase "Realizar login" as UC_LOG
+  usecase "Recuperar senha" as UC_REC
+  usecase "Criar comunidade" as UC_CRI
+  usecase "Entrar em comunidade" as UC_ENT
+  usecase "Consultar mural" as UC_MUR
+  usecase "Pesquisar publicação" as UC_PES
+  usecase "Publicar informação" as UC_PUB
+  usecase "Editar publicação" as UC_EDI
+  usecase "Encerrar publicação" as UC_ENC
+  usecase "Reabrir publicação" as UC_REA
+  usecase "Excluir publicação" as UC_EXC
+  usecase "Administrar comunidade" as UC_ADC
+  usecase "Administrar usuários" as UC_ADU
+  usecase "Administrar eventos gerais" as UC_ADE
+}
+
+U --> UC_CAD
+U --> UC_LOG
+U --> UC_REC
+U --> UC_CRI
+U --> UC_ENT
+U --> UC_MUR
+U --> UC_PUB
+U --> UC_EDI
+U --> UC_ENC
+U --> UC_REA
+U --> UC_EXC
+
+UC_PES .> UC_MUR : <<extend>>
+UC_PUB .> UC_LOG : <<include>>
+UC_ENT .> UC_LOG : <<include>>
+
+AC --> UC_ADC
+AG --> UC_ADC
+AG --> UC_ADU
+AG --> UC_ADE
+
+note right of UC_EDI
+  Somente o autor,
+  até 24 horas após
+  a publicação.
+end note
+@enduml

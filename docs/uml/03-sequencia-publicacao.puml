@@ -1,0 +1,47 @@
+@startuml 03-sequencia-publicacao
+skinparam dpi 200
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam sequence {
+  ParticipantBackgroundColor #F1F8E9
+  ParticipantBorderColor #2E7D32
+  ActorBorderColor #2E7D32
+  LifeLineBorderColor #78909C
+  GroupBorderColor #2E7D32
+}
+autonumber
+
+title Diagrama de Sequência 1 – Realizar publicação
+
+actor "Usuário" as U
+participant "Interface do\nsistema" as I
+participant "Controle de\npublicações" as C
+database "Banco de\ndados" as BD
+
+U -> I : solicitar nova publicação
+activate I
+I --> U : apresentar formulário
+U -> I : preencher tipo, título, descrição,\nintenção e data
+I -> C : enviar dados da publicação
+activate C
+C -> C : verificar campos obrigatórios
+C -> BD : consultar participação do usuário\nna comunidade
+activate BD
+BD --> C : resultado da consulta
+deactivate BD
+
+alt dados válidos e usuário é membro
+  C -> BD : registrar publicação
+  activate BD
+  BD --> C : publicação registrada
+  deactivate BD
+  C --> I : sucesso
+  I --> U : apresentar confirmação\n("Publicação feita!")
+else dados incompletos ou usuário não pertence à comunidade
+  C --> I : erro de validação / acesso negado
+  I --> U : apresentar mensagem de erro\n(publicação não registrada)
+end
+
+deactivate C
+deactivate I
+@enduml
